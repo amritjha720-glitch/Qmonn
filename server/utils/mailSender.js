@@ -1,29 +1,39 @@
 const nodemailer = require("nodemailer");
 
 const mailSender = async (email, title, body) => {
-    try{
-            let transporter = nodemailer.createTransport({
-                host:process.env.MAIL_HOST,
-                auth:{
-                    user: process.env.MAIL_USER,
-                    pass: process.env.MAIL_PASS,
-                }
-            })
+  const host = process.env.MAIL_HOST;
+  const user = process.env.MAIL_USER;
+  const pass = process.env.MAIL_PASS;
 
+  if (!host || !user || !pass) {
+    throw new Error(
+      "Missing MAIL_HOST, MAIL_USER, or MAIL_PASS environment variable"
+    );
+  }
 
-            let info = await transporter.sendMail({
-                from: 'StudyNotion || CodeHelp - by Babbar',
-                to:`${email}`,
-                subject: `${title}`,
-                html: `${body}`,
-            })
-            console.log(info);
-            return info;
-    }
-    catch(error) {
-        console.log(error.message);
-    }
-}
+  const transporter = nodemailer.createTransport({
+    host,
+    port: Number(process.env.MAIL_PORT || 587),
+    secure: process.env.MAIL_SECURE === "true",
+    auth: {
+      user,
+      pass,
+    },
+  });
 
+  try {
+    const info = await transporter.sendMail({
+      from: user,
+      to: email,
+      subject: title,
+      html: body,
+    });
+
+    return info;
+  } catch (error) {
+    console.error("Email sending failed:", error.message);
+    throw error;
+  }
+};
 
 module.exports = mailSender;
