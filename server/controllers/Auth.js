@@ -76,9 +76,7 @@ exports.signup = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10)
 
     // Create the user
-    let approved = ""
-    approved === "Instructor" ? (approved = false) : (approved = true)
-
+   const approved = accountType !== "Instructor";
     // Create the Additional Profile For User
     const profileDetails = await Profile.create({
       gender: null,
@@ -95,7 +93,9 @@ exports.signup = async (req, res) => {
       accountType: accountType,
       approved: approved,
       additionalDetails: profileDetails._id,
-      image: "",
+      iimage: `https://api.dicebear.com/5.x/initials/svg?seed=${encodeURIComponent(
+  `${firstName} ${lastName}`
+)}`,
     })
 
     return res.status(200).json({
@@ -181,49 +181,52 @@ exports.login = async (req, res) => {
 // Send OTP For Email Verification
 exports.sendotp = async (req, res) => {
   try {
-    const { email } = req.body
+    const { email } = req.body || {};
 
-    // Check if user is already present
-    // Find user with provided email
-    const checkUserPresent = await User.findOne({ email })
-    // to be used in case of signup
-
-    // If user found with provided email
-    if (checkUserPresent) {
-      // Return 401 Unauthorized status code with error message
-      return res.status(401).json({
+    if (!email || typeof email !== "string") {
+      return res.status(400).json({
         success: false,
-        message: `User is Already Registered`,
-      })
+        message: "Email is required",
+      });
     }
 
-    var otp = otpGenerator.generate(6, {
+    const checkUserPresent = await User.findOne({
+      email: email.trim(),
+    });
+
+    if (checkUserPresent) {
+      return res.status(409).json({
+        success: false,
+        message: "User is already registered",
+      });
+    }
+
+    const otp = otpGenerator.generate(6, {
+      digits: true,
       upperCaseAlphabets: false,
       lowerCaseAlphabets: false,
       specialChars: false,
-    })
-    const result = await OTP.findOne({ otp: otp })
-    console.log("Result is Generate OTP Func")
-    console.log("OTP", otp)
-    console.log("Result", result)
-    while (result) {
-      otp = otpGenerator.generate(6, {
-        upperCaseAlphabets: false,
-      })
-    }
-    const otpPayload = { email, otp }
-    const otpBody = await OTP.create(otpPayload)
-    console.log("OTP Body", otpBody)
-    res.status(200).json({
-      success: true,
-      message: `OTP Sent Successfully`,
+    });
+
+    // OTP model's pre-save hook sends the verification email.
+    await OTP.create({
+      email: email.trim(),
       otp,
-    })
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP sent successfully",
+    });
   } catch (error) {
-    console.log(error.message)
-    return res.status(500).json({ success: false, error: error.message })
+    console.error("SENDOTP error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to send OTP. Please try again.",
+    });
   }
-}
+};
 
 // Controller for Changing Password
 exports.changePassword = async (req, res) => {
