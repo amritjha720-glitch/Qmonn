@@ -93,7 +93,7 @@ exports.signup = async (req, res) => {
       accountType: accountType,
       approved: approved,
       additionalDetails: profileDetails._id,
-      iimage: `https://api.dicebear.com/5.x/initials/svg?seed=${encodeURIComponent(
+      image: `https://api.dicebear.com/5.x/initials/svg?seed=${encodeURIComponent(
   `${firstName} ${lastName}`
 )}`,
     })
