@@ -1,39 +1,42 @@
-const nodemailer = require("nodemailer");
-
 const mailSender = async (email, title, body) => {
-  const host = process.env.MAIL_HOST;
-  const user = process.env.MAIL_USER;
-  const pass = process.env.MAIL_PASS;
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
 
-  if (!host || !user || !pass) {
+  if (!apiKey || !fromEmail) {
     throw new Error(
-      "Missing MAIL_HOST, MAIL_USER, or MAIL_PASS environment variable"
+      "Missing RESEND_API_KEY or RESEND_FROM_EMAIL"
     );
   }
 
-  const transporter = nodemailer.createTransport({
-    host,
-    port: Number(process.env.MAIL_PORT || 587),
-    secure: process.env.MAIL_SECURE === "true",
-    auth: {
-      user,
-      pass,
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
     },
-  });
-
-  try {
-    const info = await transporter.sendMail({
-      from: user,
-      to: email,
+    body: JSON.stringify({
+      from: fromEmail,
+      to: [email],
       subject: title,
       html: body,
-    });
+    }),
+  });
 
-    return info;
-  } catch (error) {
-    console.error("Email sending failed:", error.message);
-    throw error;
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      `Resend API error (${response.status}): ${
+        result.message || result.error || JSON.stringify(result)
+      }`
+    );
   }
+
+  // Keep the response property for compatibility with existing code.
+  return {
+    ...result,
+    response: result.id || "Accepted by Resend",
+  };
 };
 
 module.exports = mailSender;
